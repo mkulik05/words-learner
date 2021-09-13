@@ -1,0 +1,27 @@
+{
+  "name": "words-learner",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mkulik05/words-learner.git"
+  },
+  "author": "mkulik05",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mkulik05/words-learner/issues"
+  },
+  "homepage": "https://github.com/mkulik05/words-learner#readme",
+  "dependencies": {
+    "mongodb": "^4.1.1",
+    "node-fetch": "^3.0.0",
+    "telegraf": "^4.4.1",
+    "telegram-keyboard": "^2.2.6",
+    "translate": "^1.2.3"
+  }
+}
