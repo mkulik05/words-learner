@@ -13,20 +13,28 @@ const keyboard1 = Markup.inlineKeyboard([[
 	],
 
 	[
-		Markup.button.callback('Озвучить', 'hear_word0')
+		Markup.button.callback('Озвучить', 'hear_word')
 	]
 
 
 ])
-
-
-
 const keyboard2 = Markup.inlineKeyboard([[
 	Markup.button.callback('Я запомнил', 'add_to_learned1'),
 ],
 
 [
-	Markup.button.callback('Озвучить', 'hear_word1')
+	Markup.button.callback('Озвучить', 'hear_word')
+]
+
+
+])
+
+const keyboard3 = Markup.inlineKeyboard([[
+	Markup.button.callback('Список изученных слов', 'learned_list'),
+],
+
+[
+	Markup.button.callback('Список изучаемых слов', 'learning_list')
 ]
 
 
@@ -34,7 +42,6 @@ const keyboard2 = Markup.inlineKeyboard([[
 
 let current_word = {}
 let mode = ""
-let word_type = ""
 
 let learn_new_words = (ctx) => {
 	mode = 'new'
@@ -47,19 +54,34 @@ let learn_new_words = (ctx) => {
 	}
 	let word = user.new.pop()
 	fs.writeFileSync("user.json", JSON.stringify(user))
-	word_type = "new"
 	ctx.reply(word, keyboard1)
 }
 
 let check = async (ctx) => {
 	console.log(current_word)
-	let answ = ctx.message.text
+	let answ = ctx.message.text.toLocaleLowerCase()
 	let correct = 0
 	for (let i = 0; i < current_word.length; i++) {
 		let line = current_word[i]
-		if (line.includes(answ.toLocaleLowerCase())) {
-			correct = 1
-			repeat_words(ctx)
+		for (let word of line) {
+			if (answ === word) {
+				correct = 1
+				repeat_words(ctx)
+			} else {
+				if (answ.length === word.length) {
+					let incorrect = 0
+					for (let j = 0; j < word.length; j++) {
+						if (answ[j] !== word[j] && !(['е', 'ё'].includes(answ[j]) && ['е', 'ё'].includes(word[j]))) {
+							incorrect = 1
+							break
+						}
+					}
+					if (!incorrect) {
+						correct = 1
+						repeat_words(ctx)
+					}
+				}
+			}
 		}
 	}
 
@@ -86,8 +108,13 @@ let repeat_words = (ctx) => {
 }
 
 let statistics = (ctx) => {
-
+	let user = JSON.parse(fs.readFileSync("user.json"))
+	let learned = user['learned'].length
+	let learning = user['need_to_repeat'].length
+	ctx.reply(`You know ${learned} words\nYou are learning ${learning} words`, keyboard3)
 }
+
+
 
 let actions = [learn_new_words, repeat_words]
 for (let i of [0, 1]) {
@@ -103,17 +130,32 @@ for (let i of [0, 1]) {
 		actions[i](ctx)
 	
 	})
-
-	bot.action(`hear_word${i}`, async(ctx) => {
-		let word = ctx.update.callback_query.message.text
-		await ctx.replyWithVoice({
-			source: fs.createReadStream(`tts/speech/${word}.wav`)
-		})
-		actions[i](ctx)
-	
-	})
 }
 
+bot.action(`hear_word`, async (ctx) => {
+	let word = ctx.update.callback_query.message.text
+	await ctx.replyWithVoice({
+		source: fs.createReadStream(`tts/speech/${word}.wav`)
+	})
+})
+
+bot.action(`learned_list`, async (ctx) => {
+	let user = JSON.parse(fs.readFileSync("user.json"))
+	let tmp_file_name = Math.floor(Math.random() * 1000) + '.txt'
+	let data = user.learned.join('\n')
+	fs.writeFileSync(tmp_file_name, data)
+	await ctx.replyWithDocument({'source': fs.createReadStream(tmp_file_name)})
+	fs.unlinkSync(tmp_file_name)
+})
+
+bot.action(`learning_list`, async (ctx) => {
+	let user = JSON.parse(fs.readFileSync("user.json"))
+	let tmp_file_name = Math.floor(Math.random() * 1000) + '.txt'
+	let data = user.need_to_repeat.join('\n')
+	fs.writeFileSync(tmp_file_name, data)
+	await ctx.replyWithDocument({'source': fs.createReadStream(tmp_file_name)})
+	fs.unlinkSync(tmp_file_name)
+})
 
 bot.action('add_to_need_to_repeat', (ctx) => {
 	ctx.deleteMessage()
