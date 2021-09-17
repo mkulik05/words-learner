@@ -19,14 +19,14 @@ const keyboard_discovering = Markup.inlineKeyboard([[
 
 ])
 const keyboard_learning_en_ru = Markup.inlineKeyboard([[
- Markup.button.callback('Не знаю', 'get_translation'),
+	Markup.button.callback('Не знаю', 'get_translation'),
 ],
 [
 	Markup.button.callback('Озвучить', 'hear_word')
 ]
 ])
 const keyboard_learning_ru_en = Markup.inlineKeyboard([[
- Markup.button.callback('Не знаю', 'get_translation'),
+	Markup.button.callback('Не знаю', 'get_translation'),
 ]
 ])
 
@@ -44,10 +44,9 @@ const keyboard_statistics = Markup.inlineKeyboard([[
 let current = { mode: "", question: {} }
 
 let sort_words = (ctx) => {
-	console.log("sort_words")
 	current['mode'] = 'new'
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "need_to_learn": {"words": [], "k": {}}, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "learned": [], "need_to_learn": { "words": [], "k": {} }, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
@@ -101,10 +100,10 @@ let check = async (ctx) => {
 		} else {
 			if (answ === translations[0][0]) {
 				correct = 1
+				
 				user['need_to_learn']['k'][translations[0][0]] += 1
-				console.log("+1",translations[0][0], user['need_to_learn']['k'][translations[0][0]])
+				console.log("+1", translations[0][0], user['need_to_learn']['k'][translations[0][0]])
 				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-				console.log(JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`)).need_to_learn.k[translations[0][0]])
 				learn_words(ctx)
 			}
 		}
@@ -116,7 +115,12 @@ let check = async (ctx) => {
 				answ += current.question.translations[line].join(', ')
 				answ += '\n\n'
 			}
-			user['need_to_learn']['k'][current.question.word] -= 1
+			if (current['question']['should_translate_to'] === 'ru') {
+				user['need_to_learn']['k'][current.question.word] -= 1
+			} else {
+				user['need_to_learn']['k'][answ] -= 1
+			}
+			
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 			await ctx.reply(answ)
 			learn_words(ctx)
@@ -129,16 +133,17 @@ let check = async (ctx) => {
 let learn_words = (ctx) => {
 	console.log("learn_words")
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "need_to_learn": {"words": [], "k": {}}, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1}, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
 		user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	}
 	let need_to_learn = user['need_to_learn']
+	let current_group = need_to_learn['current_group']
 	current['mode'] = 'repeating'
 	if (need_to_learn.words.length > 0) {
-		let portion = need_to_learn.words.slice(0, 10)
+		let portion = need_to_learn.words.slice(current_group * 10 - 10, current_group * 10)
 		if (!Object.keys(user['need_to_learn']).includes('k')) {
 			user['need_to_learn']['k'] = {}
 		}
@@ -165,21 +170,18 @@ let learn_words = (ctx) => {
 			}
 			return 0;
 		});
-		console.log(all_k)
 		en_word = all_k[0][0]
 		let word = ""
 		if (Math.random() > 0.5) {
 			word = en_word
 			console.log('en to ru')
 			current['question'] = { translations: data[en_word], word: en_word, should_translate_to: 'ru' }
-			console.log(current['question'])
 			ctx.reply(word, keyboard_learning_en_ru)
 		} else {
 			let question = data[en_word][0][0]
 			word = question
 			console.log('ru to en')
 			current['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
-			console.log(current['question'])
 			ctx.reply(word, keyboard_learning_ru_en)
 		}
 	} else {
@@ -266,7 +268,6 @@ bot.action('add_to_need_to_learn', (ctx) => {
 	ctx.deleteMessage()
 	let word = ctx.update.callback_query.message.text
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	console.log(user)
 	user.need_to_learn.words.push(word)
 	if (user.new.includes(word)) {
 		user.new.pop()
@@ -277,11 +278,18 @@ bot.action('add_to_need_to_learn', (ctx) => {
 })
 
 
-
+let select_group = (ctx, group) => {
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	user.need_to_learn.current_group = group
+	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+	learn_words(ctx)
+	
+}
 
 bot.start((ctx) => {
 	ctx.reply("Воспульзуйтесь клавиатурой чтобы начать учить слова", Keyboard.make([['Сортировать слова', 'Учить слова'], ['Статистика']]).reply())
 })
+
 bot.on('text', async (ctx) => {
 	switch (ctx.message.text) {
 		case 'Главная':
@@ -291,19 +299,40 @@ bot.on('text', async (ctx) => {
 			sort_words(ctx)
 			break;
 		case 'Учить слова':
-			await ctx.reply('Успехов!!!', Keyboard.make([['Я выучил эту группу', 'Повторение слов'], ['Главная', 'Перемешать слова']]).reply())
+			await ctx.reply('Успехов!!!', Keyboard.make([['←', '1', '→'], ['Главная', 'Перемешать слова']]).reply())
 			learn_words(ctx)
 			break;
 		case 'Статистика':
 			statistics(ctx)
 			break;
+		case '1':
+			ctx.reply('Вы действительно хотите перейти к первой группе, вы не сможете мгновенно вернуться на текущую? Для подтверждения введите "Да, я действительно хочу перейти к 1 группе"')
+			break
+		case 'Да, я действительно хочу перейти к 1 группе':
+			select_group(ctx, 1)
+			break
+		case '←':
+			let group = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`)).need_to_learn.current_group - 1
+			if (group > 0) {
+				select_group(ctx, group)
+			} else {
+				select_group(ctx, 1)
+			}
+			break
+		case '→':
+			let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+			let c_group = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`)).need_to_learn.current_group
+			if (c_group < user.need_to_learn.words.length / 10) {
+				select_group(ctx, c_group + 1)
+			} else {
+				select_group(ctx, c_group)
+			}
+			break
 		default:
-			console.log(current.mode, '---')
 			if (current['mode'] === 'repeating') {
 				check(ctx);
 				break;
 			}
-
 
 	}
 });
