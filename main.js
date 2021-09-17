@@ -46,7 +46,7 @@ let current = { mode: "", question: {} }
 let sort_words = (ctx) => {
 	current['mode'] = 'new'
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "need_to_learn": { "words": [], "k": {} }, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1}, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
@@ -118,7 +118,7 @@ let check = async (ctx) => {
 			if (current['question']['should_translate_to'] === 'ru') {
 				user['need_to_learn']['k'][current.question.word] -= 1
 			} else {
-				user['need_to_learn']['k'][answ] -= 1
+				user['need_to_learn']['k'][current.question.translations[0][0]] -= 1
 			}
 			
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
@@ -147,6 +147,7 @@ let learn_words = (ctx) => {
 		if (!Object.keys(user['need_to_learn']).includes('k')) {
 			user['need_to_learn']['k'] = {}
 		}
+		// console.log(portion, need_to_learn, user['need_to_learn'], [current_group * 10 - 10, current_group * 10])
 		for (let i = 0; i < portion.length; i++) {
 			if (!Object.keys(user['need_to_learn']['k']).includes(portion[i])) {
 				user['need_to_learn']['k'][portion[i]] = 0
@@ -306,9 +307,18 @@ bot.on('text', async (ctx) => {
 			statistics(ctx)
 			break;
 		case '1':
-			ctx.reply('Вы действительно хотите перейти к первой группе, вы не сможете мгновенно вернуться на текущую? Для подтверждения введите "Да, я действительно хочу перейти к 1 группе"')
+			ctx.reply('Вы действительно хотите перейти к первой группе, вы не сможете мгновенно вернуться на текущую?\n Для подтверждения введите "Да, я действительно хочу перейти к 1 группе"')
+			break
+		case 'Перемешать слова':
+			ctx.reply('Вы действительно хотите перемешать ВСЕ слова?\n\n ЭТО НЕОБРАТИМОЕ ДЕЙСТВИЕ! \n\nЭто изменит все группы слов.\n Для подтверждения введите "Да, я действительно хочу перемешать ВСЕ слова"')
 			break
 		case 'Да, я действительно хочу перейти к 1 группе':
+			select_group(ctx, 1)
+			break
+		case 'Да, я действительно хочу перемешать ВСЕ слова':
+			let us = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+			us.need_to_learn.words.sort(()=> Math.random() - 0.5)
+			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(us))
 			select_group(ctx, 1)
 			break
 		case '←':
