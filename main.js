@@ -18,16 +18,33 @@ const keyboard_discovering = Markup.inlineKeyboard([[
 
 
 ])
-const keyboard_learning_en_ru = Markup.inlineKeyboard([[
-	Markup.button.callback('Не знаю', 'get_translation'),
-],
-[
-	Markup.button.callback('Озвучить', 'hear_word')
-]
+const keyboard_learning_en_ru = Markup.inlineKeyboard([
+	[
+
+		Markup.button.callback('-3', 'change_rating-3'),
+		Markup.button.callback('-2', 'change_rating-2'),
+		Markup.button.callback('+2', 'change_rating2'),
+		Markup.button.callback('+3', 'change_rating3'),
+
+	],
+	[
+		Markup.button.callback('Не знаю', 'get_translation'),
+	],
+	[
+		Markup.button.callback('Озвучить', 'hear_word')
+	]
 ])
-const keyboard_learning_ru_en = Markup.inlineKeyboard([[
-	Markup.button.callback('Не знаю', 'get_translation'),
-]
+const keyboard_learning_ru_en = Markup.inlineKeyboard([
+	[
+		Markup.button.callback('-3', 'change_rating-3'),
+		Markup.button.callback('-2', 'change_rating-2'),
+		Markup.button.callback('+2', 'change_rating2'),
+		Markup.button.callback('+3', 'change_rating3'),
+	],
+	[
+		Markup.button.callback('Не знаю', 'get_translation')
+	],
+
 ])
 
 const keyboard_statistics = Markup.inlineKeyboard([[
@@ -41,12 +58,12 @@ const keyboard_statistics = Markup.inlineKeyboard([[
 
 ])
 
-let current = { mode: "", question: {} }
+let question_history = [{ mode: "", question: {} }]
 
 let sort_words = (ctx) => {
-	current['mode'] = 'new'
+	question_history[question_history.length - 1]['mode'] = 'new'
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1}, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
@@ -62,19 +79,19 @@ let sort_words = (ctx) => {
 }
 
 let check = async (ctx) => {
-	if (current !== { mode: "", question: {} }) {
+	if (question_history[question_history.length - 1] !== { mode: "", question: {} }) {
 		let answ = ctx.message.text.toLocaleLowerCase()
 		let correct = 0
 		let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-		let translations = current['question']['translations']
-		if (current['question']['should_translate_to'] === 'ru') {
+		let translations = question_history[question_history.length - 1]['question']['translations']
+		if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
 			for (let i = 0; i < translations.length; i++) {
 				let line = translations[i]
 				for (let word of line) {
 					if (answ === word) {
 						correct = 1
-						console.log("+1", current.question.word)
-						user['need_to_learn']['k'][current.question.word] += 1
+						console.log("+1", question_history[question_history.length - 1].question.word)
+						user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
 						fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 						learn_words(ctx)
 					} else {
@@ -88,8 +105,8 @@ let check = async (ctx) => {
 							}
 							if (!incorrect) {
 								correct = 1
-								console.log("+1", current.question.word)
-								user['need_to_learn']['k'][current.question.word] += 1
+								console.log("+1", question_history[question_history.length - 1].question.word)
+								user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
 								fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 								learn_words(ctx)
 							}
@@ -100,7 +117,6 @@ let check = async (ctx) => {
 		} else {
 			if (answ === translations[0][0]) {
 				correct = 1
-				
 				user['need_to_learn']['k'][translations[0][0]] += 1
 				console.log("+1", translations[0][0], user['need_to_learn']['k'][translations[0][0]])
 				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
@@ -110,17 +126,17 @@ let check = async (ctx) => {
 
 
 		if (!correct) {
-			let answ = current.question.word + " - "
-			for (let line = 0; line < current.question.translations.length; line++) {
-				answ += current.question.translations[line].join(', ')
+			let answ = question_history[question_history.length - 1].question.word + " - "
+			for (let line = 0; line < question_history[question_history.length - 1].question.translations.length; line++) {
+				answ += question_history[question_history.length - 1].question.translations[line].join(', ')
 				answ += '\n\n'
 			}
-			if (current['question']['should_translate_to'] === 'ru') {
-				user['need_to_learn']['k'][current.question.word] -= 1
+			if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
+				user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] -= 1
 			} else {
-				user['need_to_learn']['k'][current.question.translations[0][0]] -= 1
+				user['need_to_learn']['k'][question_history[question_history.length - 1].question.translations[0][0]] -= 1
 			}
-			
+
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 			await ctx.reply(answ)
 			learn_words(ctx)
@@ -133,7 +149,7 @@ let check = async (ctx) => {
 let learn_words = (ctx) => {
 	console.log("learn_words")
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1}, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "learned": [], "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
@@ -141,7 +157,8 @@ let learn_words = (ctx) => {
 	}
 	let need_to_learn = user['need_to_learn']
 	let current_group = need_to_learn['current_group']
-	current['mode'] = 'repeating'
+	question_history.push({})
+	question_history[question_history.length - 1]['mode'] = 'repeating'
 	if (need_to_learn.words.length > 0) {
 		let portion = need_to_learn.words.slice(current_group * 10 - 10, current_group * 10)
 		if (!Object.keys(user['need_to_learn']).includes('k')) {
@@ -176,13 +193,16 @@ let learn_words = (ctx) => {
 		if (Math.random() > 0.5) {
 			word = en_word
 			console.log('en to ru')
-			current['question'] = { translations: data[en_word], word: en_word, should_translate_to: 'ru' }
+
+			question_history[question_history.length - 1]['question'] = { translations: data[en_word], word: en_word, should_translate_to: 'ru' }
 			ctx.reply(word, keyboard_learning_en_ru)
 		} else {
 			let question = data[en_word][0][0]
+			user.need_to_learn.ru_to_en[question] = en_word
+			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 			word = question
 			console.log('ru to en')
-			current['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
+			question_history[question_history.length - 1]['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
 			ctx.reply(word, keyboard_learning_ru_en)
 		}
 	} else {
@@ -192,10 +212,14 @@ let learn_words = (ctx) => {
 }
 
 let statistics = (ctx) => {
-	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	let learned = user['learned'].length
-	let learning = user['need_to_learn']['words'].length
-	ctx.reply(`You know ${learned} words\nYou are learning ${learning} words`, keyboard_statistics)
+	if (fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
+		let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+		let learned = user['learned'].length
+		let learning = user['need_to_learn']['words'].length
+		ctx.reply(`You know ${learned} words\nYou are learning ${learning} words`, keyboard_statistics)
+	} else {
+		ctx.reply("Для начала начните сортировать слова")
+	}
 }
 
 
@@ -205,7 +229,10 @@ for (let i of [0, 1]) {
 	bot.action(`add_to_learned${i}`, (ctx) => {
 		let word = ctx.update.callback_query.message.text
 		let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-		ctx.deleteMessage()
+		try {
+			ctx.deleteMessage()
+		} catch (err) {
+		}
 		user.learned.push(word)
 		if (user.need_to_learn.words.includes(word)) {
 			user.need_to_learn.words.splice(user.need_to_learn.indexOf(word), 1);
@@ -220,8 +247,8 @@ for (let i of [0, 1]) {
 }
 
 bot.action(`get_translation`, async (ctx) => {
-	let current_word = current['question']['translations']
-	let answ = current.question.word + " - "
+	let current_word = question_history[question_history.length - 1]['question']['translations']
+	let answ = question_history[question_history.length - 1].question.word + " - "
 	for (let line = 0; line < current_word.length; line++) {
 		answ += current_word[line].join(', ')
 		answ += '\n\n'
@@ -230,7 +257,27 @@ bot.action(`get_translation`, async (ctx) => {
 	learn_words(ctx)
 })
 
-
+let rating_changes = [-3, -2, 2, 3]
+for (let rating of rating_changes) {
+	bot.action(`change_rating${rating}`, async (ctx) => {
+		let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+		let question = ctx.update.callback_query.message.text.toLowerCase()
+		let translate_to = 'en'
+		let eng = "abcdefghijklmnopqrstuvwxyz"
+		if (eng.includes(question[0])) {
+			translate_to = 'ru'
+		}
+		if (translate_to === 'en') {
+			let word = user.need_to_learn.ru_to_en[question]
+			user['need_to_learn']['k'][word] += rating
+		} else {
+			user['need_to_learn']['k'][question] += rating
+		}
+		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+		console.log(user['need_to_learn']['k'])
+		ctx.reply('Рейтинг изменён, но бот всё ещё ждёт Вашего ответа')
+	})
+}
 bot.action(`hear_word`, async (ctx) => {
 	let word = ctx.update.callback_query.message.text
 	await ctx.replyWithVoice({
@@ -266,7 +313,10 @@ bot.action(`learning_list`, async (ctx) => {
 })
 
 bot.action('add_to_need_to_learn', (ctx) => {
-	ctx.deleteMessage()
+	try {
+		ctx.deleteMessage()
+	} catch (err) {
+	}
 	let word = ctx.update.callback_query.message.text
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	user.need_to_learn.words.push(word)
@@ -284,7 +334,32 @@ let select_group = (ctx, group) => {
 	user.need_to_learn.current_group = group
 	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	learn_words(ctx)
-	
+
+}
+
+let repeat = (ctx) => {
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	let data = JSON.parse(fs.readFileSync("data/data.json"))
+	let group = user.need_to_learn.current_group
+	group = user.need_to_learn.words.slice(group * 10 - 10, group * 10)
+	let res = ""
+	for (let word of group) {
+		res += word + ' - '
+		console.log(word, data[word])
+		let translations = data[word]
+		for (let part_of_speech of translations) {
+			res += part_of_speech[0] + ' '
+			if (part_of_speech.length > 1) {
+				res += part_of_speech[1] + ' '
+			}
+
+		}
+		res += "\n"
+	}
+	if (res != "") {
+		ctx.reply(res)
+	}
+
 }
 
 bot.start((ctx) => {
@@ -300,11 +375,14 @@ bot.on('text', async (ctx) => {
 			sort_words(ctx)
 			break;
 		case 'Учить слова':
-			await ctx.reply('Успехов!!!', Keyboard.make([['←', '1', '→'], ['Главная', 'Перемешать слова']]).reply())
+			await ctx.reply('Успехов!!!', Keyboard.make([['←', '1', '→'], ['Главная', 'Перемешать слова', 'Повторение']]).reply())
 			learn_words(ctx)
 			break;
 		case 'Статистика':
 			statistics(ctx)
+			break;
+		case 'Повторение':
+			repeat(ctx)
 			break;
 		case '1':
 			ctx.reply('Вы действительно хотите перейти к первой группе, вы не сможете мгновенно вернуться на текущую?\n Для подтверждения введите "Да, я действительно хочу перейти к 1 группе"')
@@ -317,7 +395,7 @@ bot.on('text', async (ctx) => {
 			break
 		case 'Да, я действительно хочу перемешать ВСЕ слова':
 			let us = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-			us.need_to_learn.words.sort(()=> Math.random() - 0.5)
+			us.need_to_learn.words.sort(() => Math.random() - 0.5)
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(us))
 			select_group(ctx, 1)
 			break
@@ -339,7 +417,7 @@ bot.on('text', async (ctx) => {
 			}
 			break
 		default:
-			if (current['mode'] === 'repeating') {
+			if (question_history[question_history.length - 1]['mode'] === 'repeating') {
 				check(ctx);
 				break;
 			}
