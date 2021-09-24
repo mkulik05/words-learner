@@ -311,12 +311,16 @@ for (let rating of rating_changes) {
 
 let init_spelling = async (ctx, borders, from) => {
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	await ctx.reply("Диктант начался", Keyboard.make(['|Главная|']).reply())
+	await ctx.reply(`Диктант начался, группа ${borders[0]} - ${borders[1]}`, Keyboard.make(['|Главная|']).reply())
 	let words = user.need_to_learn.words.slice(borders[0] * 10 - 10, borders[1] * 10)
-	user.spelling.words = words.sort(() => Math.random() - 0.5)
 	user.spelling.len = words.length
 	user.spelling.errors = []
 	user.spelling.from = from
+	user.spelling.groups = {}
+	for (let word of words) {
+		user.spelling.groups[word] = Math.floor((words.indexOf(word) + borders[0] * 10 - 10) / 10) + 1
+	}
+	user.spelling.words = words.sort(() => Math.random() - 0.5)
 	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	spelling(ctx)
 }
@@ -331,18 +335,20 @@ let spelling_result = (ctx) => {
 	if (errors.length !== 0) {
 		let res = "Повторите эти слова:\n\n"
 		for (let error of errors) {
-			res += error.word + ' - '
+			res += error.word + `(${user.spelling.groups[error.word]}) - `
 			let translations = error.translations
 			for (let part_of_speech of translations) {
 				res += part_of_speech[0] + ' '
 				if (part_of_speech.length > 1) {
 					res += part_of_speech[1] + ' '
 				}
-	
+
 			}
 			res += `(ваш ответ - ${error.your_answ})\n`
 		}
-		ctx.reply(res)
+		ctx.reply(res, Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
+		mode = "learning"
+		learn_words(ctx)
 	} else {
 		ctx.reply("Вы ответили правильно на все вопросы")
 	}
@@ -469,7 +475,7 @@ bot.on('text', async (ctx) => {
 			sort_words(ctx)
 			break;
 		case '|Учить слова|':
-			await ctx.reply('Успехов!!!', Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Главная|', '|Перемешать слова|', '|Повторение|', '|Диктант|']]).reply())
+			await ctx.reply('Успехов!!!', Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 			learn_words(ctx)
 			break;
 		case '|Статистика|':
@@ -493,9 +499,10 @@ bot.on('text', async (ctx) => {
 				ctx.reply("Выберите группы в формате '1-5'")
 			}
 			break;
-		// case '|Перейти к группе|':
-		// 	ctx.reply('Введите номер группы')
-		// 	break
+		case '|Перейти к группе|':
+			mode = "to_n_group"
+			ctx.reply('Введите номер группы')
+			break
 		case '|Перемешать слова|':
 			ctx.reply('Вы действительно хотите перемешать ВСЕ слова?\n\n ЭТО НЕОБРАТИМОЕ ДЕЙСТВИЕ! \n\nЭто изменит все группы слов.\n Для подтверждения введите "Да, я действительно хочу перемешать ВСЕ слова"')
 			break
@@ -529,6 +536,17 @@ bot.on('text', async (ctx) => {
 				check(ctx);
 				break;
 			}
+			if (mode === "to_n_group") {
+				let text = ctx.message.text.toLowerCase()
+				if (!isNaN(parseInt(text))) {
+					let group = parseInt(text)
+					mode = "learning"
+					if (group < 1) group = 1
+					select_group(ctx, parseInt(text))
+				} else {
+					ctx.reply("Введите корректный ответ")
+				}
+			}
 			if (mode.includes("select_groups_for_spelling")) {
 				let lang = ""
 				if (mode.includes("_ru")) {
@@ -538,25 +556,21 @@ bot.on('text', async (ctx) => {
 				}
 				let text = ctx.message.text.toLowerCase()
 				let borders = text.split("-")
+				let res = []
 				for (let i = 0; i < 2; i++) {
 					let b = borders[i]
-					let res = []
 					if (!isNaN(parseInt(b))) {
 						res[i] = parseInt(b)
 					}
-					if (res.length === 2 || res[0] > res[1]) {
-						if (res[0] < 1) {
-							res[0] = 1
-						}
-						if (res[1] > user?.need_to_learn?.words?.length) {
-							res[1] = user?.need_to_learn?.words?.length
-						}
-						mode = "spelling"
-						init_spelling(ctx, res, lang)
-					} else {
-						ctx.reply("Укажите корректный промежуток")
-					}
 
+				}
+				if (res.length === 2 || res[0] > res[1]) {
+					if (res[0] < 1) res[0] = 1
+
+					mode = "spelling"
+					init_spelling(ctx, res, lang)
+				} else {
+					ctx.reply("Укажите корректный промежуток")
 				}
 			}
 
