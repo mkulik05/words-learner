@@ -542,7 +542,8 @@ bot.on('text', async (ctx) => {
 					let group = parseInt(text)
 					mode = "learning"
 					if (group < 1) group = 1
-					select_group(ctx, parseInt(text))
+					if (group > Math.floor(user.need_to_learn.words.length / 10)) group = Math.floor(user.need_to_learn.words.length / 10)
+					select_group(ctx, group)
 				} else {
 					ctx.reply("Введите корректный ответ")
 				}
