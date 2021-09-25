@@ -85,6 +85,11 @@ let check = async (ctx) => {
 		let correct = 0
 		let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 		let translations = question_history[question_history.length - 1]['question']['translations']
+		if (translations === undefined || question_history[question_history.length - 1].question.word === undefined) {
+			ctx.reply("Перевод этого слова отсутствует")
+			learn_words(ctx)
+			return
+		}
 		if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
 			for (let i = 0; i < translations.length; i++) {
 				let line = translations[i]
@@ -96,6 +101,7 @@ let check = async (ctx) => {
 							user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
 							fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 							learn_words(ctx)
+							break
 						}
 						if (mode === "spelling") {
 							console.log("\n\n\n1 --- yes")
@@ -446,13 +452,18 @@ let repeat = (ctx) => {
 		res += word + ' - '
 		console.log(word, data[word])
 		let translations = data[word]
-		for (let part_of_speech of translations) {
-			res += part_of_speech[0] + ' '
-			if (part_of_speech.length > 1) {
-				res += part_of_speech[1] + ' '
+		if (translations !== undefined) {
+			for (let part_of_speech of translations) {
+				res += part_of_speech[0] + ' '
+				if (part_of_speech.length > 1) {
+					res += part_of_speech[1] + ' '
+				}
+	
 			}
-
+		} else {
+			res += "ПЕРЕВОД ОТСУТСТВУЕТ"
 		}
+		
 		res += "\n"
 	}
 	if (res != "") {
