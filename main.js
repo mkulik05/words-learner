@@ -96,17 +96,6 @@ let check = async (ctx) => {
 				for (let word of line) {
 					if (answ === word) {
 						correct = 1
-						if (mode === "learning") {
-							console.log("+1", question_history[question_history.length - 1].question.word)
-							user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
-							fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-							learn_words(ctx)
-							break
-						}
-						if (mode === "spelling") {
-							console.log("\n\n\n1 --- yes")
-							spelling(ctx)
-						}
 					} else {
 						if (answ.length === word.length) {
 							let incorrect = 0
@@ -118,16 +107,6 @@ let check = async (ctx) => {
 							}
 							if (!incorrect) {
 								correct = 1
-								if (mode === "learning") {
-									console.log("+1", question_history[question_history.length - 1].question.word)
-									user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
-									fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-									learn_words(ctx)
-								}
-								if (mode === "spelling") {
-									console.log("\n\n\n2 --- yes")
-									spelling(ctx)
-								}
 							}
 						}
 					}
@@ -136,16 +115,6 @@ let check = async (ctx) => {
 		} else {
 			if (answ === translations[0][0]) {
 				correct = 1
-				if (mode === "learning") {
-					user['need_to_learn']['k'][translations[0][0]] += 1
-					console.log("+1", translations[0][0], user['need_to_learn']['k'][translations[0][0]])
-					fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-					learn_words(ctx)
-				}
-				if (mode === "spelling") {
-					console.log("\n\n\n3 --- yes")
-					spelling(ctx)
-				}
 			}
 
 		}
@@ -171,15 +140,32 @@ let check = async (ctx) => {
 				err['your_answ'] = ctx.message.text.toLocaleLowerCase()
 				console.log(err)
 				user.spelling.errors.push(err)
+				user.spelling.i += 1
 				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				spelling(ctx)
+			}
+		} else {
+			if (mode === "learning") {
+				console.log("+1", question_history[question_history.length - 1].question.word)
+				if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
+					user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
+				} else {
+					user['need_to_learn']['k'][translations[0][0]] += 1
+				}
+				user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] += 1
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				learn_words(ctx)
+			}
+			
+			if (mode === "spelling") {
+				user.spelling.i += 1
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				console.log("\n\n\n1 --- yes")
 				spelling(ctx)
 			}
 		}
 	}
 }
-
-
-
 
 let learn_words = (ctx) => {
 	console.log("learn_words")
@@ -317,11 +303,12 @@ for (let rating of rating_changes) {
 
 let init_spelling = async (ctx, borders, from) => {
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	await ctx.reply(`Диктант начался, группа ${borders[0]} - ${borders[1]}`, Keyboard.make(['|Главная|']).reply())
+	await ctx.reply(`Диктант начался, группа ${borders[0]} - ${borders[1]}`, Keyboard.make(['|Выйти|']).reply())
 	let words = user.need_to_learn.words.slice(borders[0] * 10 - 10, borders[1] * 10)
 	user.spelling.len = words.length
 	user.spelling.errors = []
 	user.spelling.from = from
+	user.spelling.i = 0
 	user.spelling.groups = {}
 	for (let word of words) {
 		user.spelling.groups[word] = Math.floor((words.indexOf(word) + borders[0] * 10 - 10) / 10) + 1
@@ -341,7 +328,14 @@ let spelling_result = (ctx) => {
 	if (errors.length !== 0) {
 		let res = "Повторите эти слова:\n\n"
 		for (let error of errors) {
-			res += error.word + `(${user.spelling.groups[error.word]}) - `
+			console.log(user.spelling.groups)
+			let group_n = 0
+			if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
+				group_n = user.spelling.groups[error.word]
+			} else {
+				group_n = user.spelling.groups[error.translations[0][0]]
+			}
+			res += error.word + `(${group_n}) - `
 			let translations = error.translations
 			for (let part_of_speech of translations) {
 				res += part_of_speech[0] + ' '
@@ -364,10 +358,9 @@ let spelling = (ctx) => {
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
 	let words = user.spelling.words
-	if (words.length !== 0) {
-		let word = words[0]
+	if (user.spelling.i < words.length) {
+		let word = words[user.spelling.i]
 		console.log(user.spelling)
-		user.spelling.words.splice(0, 1)
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		question_history.push({})
 		if (user.spelling.from === 'ru') {
@@ -541,6 +534,16 @@ bot.on('text', async (ctx) => {
 				select_group(ctx, c_group)
 			}
 			break
+		case '|Выйти|':
+			ctx.reply("Вы действительно хотите выйти? \n\n ЭТО ПОЛНОСТЬЮ УНИЧТОЖИТ ВАШ ПРОГРЕСС В ДИКТАНТЕ \n\n Для подтверждения введите 'Да, я действительно хочу выйти'", Keyboard.make([['|Вернуться к диктанту|']]).reply())
+			break
+		case '|Вернуться к диктанту|':
+			await ctx.reply('Диктант', Keyboard.make(['|Выйти|']).reply())
+			spelling(ctx)
+			break
+		case 'Да, я действительно хочу выйти':
+			ctx.reply("Главная", Keyboard.make([['|Сортировать слова|', '|Учить слова|'], ['|Статистика|']]).reply())
+			break
 		default:
 			console.log("text", mode)
 			if (mode === 'learning' || mode === "spelling") {
@@ -578,7 +581,6 @@ bot.on('text', async (ctx) => {
 				}
 				if (res.length === 2 || res[0] > res[1]) {
 					if (res[0] < 1) res[0] = 1
-
 					mode = "spelling"
 					init_spelling(ctx, res, lang)
 				} else {
