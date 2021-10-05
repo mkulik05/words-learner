@@ -87,37 +87,38 @@ let check = async (ctx) => {
 		let translations = question_history[question_history.length - 1]['question']['translations']
 		if (translations === undefined || question_history[question_history.length - 1].question.word === undefined) {
 			ctx.reply("Перевод этого слова отсутствует")
-			learn_words(ctx)
-			return
-		}
-		if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
-			for (let i = 0; i < translations.length; i++) {
-				let line = translations[i]
-				for (let word of line) {
-					if (answ === word) {
-						correct = 1
-					} else {
-						if (answ.length === word.length) {
-							let incorrect = 0
-							for (let j = 0; j < word.length; j++) {
-								if (answ[j] !== word[j] && !(['е', 'ё'].includes(answ[j]) && ['е', 'ё'].includes(word[j]))) {
-									incorrect = 1
-									break
+			correct = 1
+		} else {
+			if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
+				for (let i = 0; i < translations.length; i++) {
+					let line = translations[i]
+					for (let word of line) {
+						if (answ === word) {
+							correct = 1
+						} else {
+							if (answ.length === word.length) {
+								let incorrect = 0
+								for (let j = 0; j < word.length; j++) {
+									if (answ[j] !== word[j] && !(['е', 'ё'].includes(answ[j]) && ['е', 'ё'].includes(word[j]))) {
+										incorrect = 1
+										break
+									}
 								}
-							}
-							if (!incorrect) {
-								correct = 1
+								if (!incorrect) {
+									correct = 1
+								}
 							}
 						}
 					}
 				}
+			} else {
+				if (answ === translations[0][0]) {
+					correct = 1
+				}
+	
 			}
-		} else {
-			if (answ === translations[0][0]) {
-				correct = 1
-			}
-
 		}
+
 		if (!correct) {
 			if (mode === "learning") {
 				let answ = question_history[question_history.length - 1].question.word + " - "
@@ -364,8 +365,15 @@ let spelling = (ctx) => {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		question_history.push({})
 		if (user.spelling.from === 'ru') {
-			question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word][0][0], should_translate_to: 'en' }
-			ctx.reply(data[word][0][0])
+			if (data[word] !== undefined && (typeof data[word] === 'object' && data[word].length > 0 && data[word][0].length)) {
+				question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word][0][0], should_translate_to: 'en' }
+				ctx.reply(data[word][0][0])
+			} else {
+				await ctx.reply("Перевод слова отсутствует")
+				user.spelling.i += 1
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				spelling(ctx)
+			}
 		} else {
 			question_history[question_history.length - 1]['question'] = { translations: data[word], word: word, should_translate_to: 'ru' }
 			ctx.reply(word)
