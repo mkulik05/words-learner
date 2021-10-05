@@ -385,9 +385,13 @@ let spelling = (ctx) => {
 
 bot.action(`hear_word`, async (ctx) => {
 	let word = ctx.update.callback_query.message.text
-	await ctx.replyWithVoice({
-		source: fs.createReadStream(`tts/speech/${word}.wav`)
-	})
+	if (fs.existsSync(`tts/speech/${word}.mp3`)) {
+		await ctx.replyWithVoice({
+			source: fs.createReadStream(`tts/speech/${word}.mp3`)
+		})
+	} else {
+		await ctx.reply("Запись отсутствует")
+	}
 })
 
 bot.action(`learned_list`, async (ctx) => {
