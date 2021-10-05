@@ -355,7 +355,7 @@ let spelling_result = (ctx) => {
 	}
 }
 
-let spelling = (ctx) => {
+let spelling = async (ctx) => {
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
 	let words = user.spelling.words
