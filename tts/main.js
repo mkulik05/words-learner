@@ -3,7 +3,7 @@ import fs from 'fs'
 import jsdom from 'jsdom';
 const { JSDOM } = jsdom;
 
-let i = 1939
+let i = 0
 let data = JSON.parse(fs.readFileSync("../data/data.json", "utf8"))
 let words = data['all']
 console.log(words.length)

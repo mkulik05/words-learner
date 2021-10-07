@@ -28,6 +28,7 @@ const keyboard_learning_en_ru = Markup.inlineKeyboard([
 
 	],
 	[
+		Markup.button.callback('Примеры', 'get_example'),
 		Markup.button.callback('Не знаю', 'get_translation'),
 	],
 	[
@@ -42,6 +43,7 @@ const keyboard_learning_ru_en = Markup.inlineKeyboard([
 		Markup.button.callback('+3', 'change_rating3'),
 	],
 	[
+		Markup.button.callback('Примеры', 'get_example'),
 		Markup.button.callback('Не знаю', 'get_translation')
 	],
 
@@ -50,12 +52,9 @@ const keyboard_learning_ru_en = Markup.inlineKeyboard([
 const keyboard_statistics = Markup.inlineKeyboard([[
 	Markup.button.callback('Список изученных слов', 'learned_list'),
 ],
-
 [
 	Markup.button.callback('Список изучаемых слов', 'learning_list')
 ]
-
-
 ])
 
 let question_history = [{ question: {} }]
@@ -216,10 +215,10 @@ let learn_words = (ctx) => {
 			word = en_word
 			console.log('en to ru')
 
-			question_history[question_history.length - 1]['question'] = { translations: data[en_word], word: en_word, should_translate_to: 'ru' }
+			question_history[question_history.length - 1]['question'] = { translations: data[en_word]['translations'], word: en_word, should_translate_to: 'ru' }
 			ctx.reply(word, keyboard_learning_en_ru)
 		} else {
-			let question = data[en_word][0][0]
+			let question = data[en_word]['translations'][0][0]
 			user.need_to_learn.ru_to_en[question] = en_word
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 			word = question
@@ -277,6 +276,26 @@ bot.action(`get_translation`, async (ctx) => {
 	}
 	await ctx.reply(answ)
 	learn_words(ctx)
+})
+
+bot.action(`get_example`, async (ctx) => {
+	let word = ctx.update.callback_query.message.text
+	let data = JSON.parse(fs.readFileSync("data/data.json"))
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	if (typeof user.need_to_learn.ru_to_en =="object" && Object.keys(user.need_to_learn.ru_to_en).includes(word)) {
+		word = user.need_to_learn.ru_to_en[word]
+	}
+	if (Object.keys(data).includes(word) && Object.keys(data[word]).includes('examples')) {
+		let examples = data[word]['examples']
+		let answ = ""
+		for (let example of examples) {
+			answ += example
+			answ+= '\n\n'
+		}
+		await ctx.reply(answ)
+	} else {
+		await ctx.reply("Примеров нет")
+	}
 })
 
 let rating_changes = [-3, -2, 2, 3]
@@ -365,9 +384,9 @@ let spelling = async (ctx) => {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		question_history.push({})
 		if (user.spelling.from === 'ru') {
-			if (data[word] !== undefined && (typeof data[word] === 'object' && data[word].length > 0 && data[word][0].length)) {
-				question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word][0][0], should_translate_to: 'en' }
-				ctx.reply(data[word][0][0])
+			if (data[word] !== undefined && (typeof data[word] === 'object' && data[word]['translations'].length > 0 && data[word]['translations'][0].length)) {
+				question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word]['translations'][0][0], should_translate_to: 'en' }
+				ctx.reply(data[word]['translations'][0][0])
 			} else {
 				await ctx.reply("Перевод слова отсутствует")
 				user.spelling.i += 1
@@ -375,7 +394,7 @@ let spelling = async (ctx) => {
 				spelling(ctx)
 			}
 		} else {
-			question_history[question_history.length - 1]['question'] = { translations: data[word], word: word, should_translate_to: 'ru' }
+			question_history[question_history.length - 1]['question'] = { translations: data[word]['translations'], word: word, should_translate_to: 'ru' }
 			ctx.reply(word)
 		}
 	} else {
@@ -455,8 +474,8 @@ let repeat = (ctx) => {
 	let res = ""
 	for (let word of group) {
 		res += word + ' - '
-		console.log(word, data[word])
-		let translations = data[word]
+		console.log(word, data[word]['translations'])
+		let translations = data[word]['translations']
 		if (translations !== undefined) {
 			for (let part_of_speech of translations) {
 				res += part_of_speech[0] + ' '

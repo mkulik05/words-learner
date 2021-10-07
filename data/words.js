@@ -123,8 +123,9 @@ let parse = (word, data) => {
         }
       }
     }
-    ready_data[word] = all_translations
-  } catch (e) {
+    ready_data[word] = {}
+    ready_data[word]['translations'] = all_translations
+    } catch (e) {
     console.error(e, data, word)
   }
 }
