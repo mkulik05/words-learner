@@ -97,13 +97,15 @@ let check = async (ctx) => {
 					while (translation.includes("ё")) {
 						translation[translation.indexOf("ё")] = "е"
 					}
-						if (answ === translation || translation.split(" ").includes(answ)) {
+					console.log(answ, translation, )
+						if (answ === translation || translation.split(" ").includes(answ) || translation.split(", ").includes(answ)) {
 							correct = 1
 						}
 				
 				}
 			} else {
-				if (answ === translations[0]) {
+				console.log(translations[0], translations)
+				if (answ === translations[0][0]) {
 					correct = 1
 				}
 
@@ -112,11 +114,7 @@ let check = async (ctx) => {
 
 		if (!correct) {
 			if (mode === "learning") {
-				let answ = question_history[question_history.length - 1].question.word + " - "
-				for (let line = 0; line < question_history[question_history.length - 1].question.translations.length; line++) {
-					answ += question_history[question_history.length - 1].question.translations[line].join(', ')
-					answ += '\n\n'
-				}
+				let answ = question_history[question_history.length - 1].question.word + " - " + question_history[question_history.length - 1].question.translations.join('; ')
 				if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
 					user['need_to_learn']['k'][question_history[question_history.length - 1].question.word] -= 1
 				} else {
@@ -201,8 +199,9 @@ let learn_words = (ctx) => {
 			}
 			return 0;
 		});
-		en_word = all_k[0]
+		en_word = all_k[0][0]
 		let word = ""
+		console.log(data[en_word], en_word)
 		if (data[en_word] !== undefined) {
 			if (Math.random() > 0.5) {
 				word = en_word
@@ -266,11 +265,7 @@ for (let i of [0, 1]) {
 
 bot.action(`get_translation`, async (ctx) => {
 	let current_word = question_history[question_history.length - 1]['question']['translations']
-	let answ = question_history[question_history.length - 1].question.word + " - "
-	for (let line = 0; line < current_word.length; line++) {
-		answ += current_word[line].join(', ')
-		answ += '\n\n'
-	}
+	let answ = question_history[question_history.length - 1].question.word + " - " + current_word.join('; ')
 	await ctx.reply(answ)
 	learn_words(ctx)
 })
