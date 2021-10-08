@@ -210,7 +210,7 @@ let learn_words = (ctx) => {
 				ctx.reply(word, keyboard_learning_en_ru)
 			} else {
 				let question = data[en_word]['translations'][0]
-				user.need_to_learn.ru_to_en[question] = en_word
+				user.need_to_learn.ru_to_en[question.trim()] = en_word
 				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				word = question
 				console.log('ru to en')
