@@ -211,20 +211,25 @@ let learn_words = (ctx) => {
 		});
 		en_word = all_k[0][0]
 		let word = ""
-		if (Math.random() > 0.5) {
-			word = en_word
-			console.log('en to ru')
-
-			question_history[question_history.length - 1]['question'] = { translations: data[en_word]['translations'], word: en_word, should_translate_to: 'ru' }
-			ctx.reply(word, keyboard_learning_en_ru)
+		if (data[en_word] !== undefined) {
+			if (Math.random() > 0.5) {
+				word = en_word
+				console.log('en to ru')
+				question_history[question_history.length - 1]['question'] = { translations: data[en_word]['translations'], word: en_word, should_translate_to: 'ru' }
+				ctx.reply(word, keyboard_learning_en_ru)
+			} else {
+				let question = data[en_word]['translations'][0][0]
+				user.need_to_learn.ru_to_en[question] = en_word
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				word = question
+				console.log('ru to en')
+				question_history[question_history.length - 1]['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
+				ctx.reply(word, keyboard_learning_ru_en)
+			}
 		} else {
-			let question = data[en_word]['translations'][0][0]
-			user.need_to_learn.ru_to_en[question] = en_word
+			user['need_to_learn']['k'][en_word] += 1
 			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-			word = question
-			console.log('ru to en')
-			question_history[question_history.length - 1]['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
-			ctx.reply(word, keyboard_learning_ru_en)
+			learn_words(ctx)
 		}
 	} else {
 		ctx.reply('Вы выучили все слова, которые не знали')
@@ -474,8 +479,9 @@ let repeat = (ctx) => {
 	let res = ""
 	for (let word of group) {
 		res += word + ' - '
-		console.log(word, data[word]['translations'])
-		let translations = data[word]['translations']
+		
+		console.log(word, data[word]?.translations)
+		let translations = data[word]?.translations
 		if (translations !== undefined) {
 			for (let part_of_speech of translations) {
 				res += part_of_speech[0] + ' '
