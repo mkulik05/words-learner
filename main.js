@@ -349,21 +349,16 @@ let spelling_result = (ctx) => {
 			}
 			res += error.word + `(${group_n}) - `
 			let translations = error.translations
-			for (let part_of_speech of translations) {
-				res += part_of_speech[0] + ' '
-				if (part_of_speech.length > 1) {
-					res += part_of_speech[1] + ' '
-				}
-
-			}
-			res += `(ваш ответ - ${error.your_answ})\n`
+			res += translations.join('; ')
+			res += ` (ваш ответ - ${error.your_answ})\n`
 		}
-		ctx.reply(res, Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 		mode = "learning"
-		learn_words(ctx)
+		ctx.reply(res, Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 	} else {
-		ctx.reply("Вы ответили правильно на все вопросы")
+		ctx.reply("Вы ответили правильно на все вопросы", Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 	}
+	learn_words(ctx)
+	
 }
 
 let spelling = async (ctx) => {
