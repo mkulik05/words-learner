@@ -465,7 +465,7 @@ let repeat = (ctx) => {
 		let translations = data[word]?.translations
 		if (translations !== undefined) {
 			for (let translation of translations) {
-				res += translation + '\n'
+				res += translation
 			}
 		} else {
 			res += "ПЕРЕВОД ОТСУТСТВУЕТ"
