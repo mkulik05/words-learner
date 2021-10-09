@@ -97,11 +97,11 @@ let check = async (ctx) => {
 					while (translation.includes("ё")) {
 						translation[translation.indexOf("ё")] = "е"
 					}
-					console.log(answ, translation, )
-						if (answ === translation || translation.split(" ").includes(answ) || translation.split(", ").includes(answ)) {
-							correct = 1
-						}
-				
+					console.log(answ, translation,)
+					if (answ === translation || translation.split(" ").includes(answ) || translation.split(", ").includes(answ)) {
+						correct = 1
+					}
+
 				}
 			} else {
 				console.log(translations[0], translations)
@@ -358,7 +358,7 @@ let spelling_result = (ctx) => {
 		ctx.reply("Вы ответили правильно на все вопросы", Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 	}
 	learn_words(ctx)
-	
+
 }
 
 let spelling = async (ctx) => {
@@ -370,20 +370,22 @@ let spelling = async (ctx) => {
 		console.log(user.spelling)
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		question_history.push({})
-		if (user.spelling.from === 'ru') {
-			if (data[word] !== undefined && (typeof data[word] === 'object' && data[word]['translations'].length > 0 && data[word]['translations'][0].length)) {
+		if (data[word] !== undefined && (typeof data[word] === 'object' && data[word]['translations'].length > 0 && data[word]['translations'][0].length)) {
+			if (user.spelling.from === 'ru') {
 				question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word]['translations'][0], should_translate_to: 'en' }
 				ctx.reply(data[word]['translations'][0])
 			} else {
-				await ctx.reply("Перевод слова отсутствует")
-				user.spelling.i += 1
-				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-				spelling(ctx)
+				question_history[question_history.length - 1]['question'] = { translations: data[word]['translations'], word: word, should_translate_to: 'ru' }
+				ctx.reply(word)
 			}
 		} else {
-			question_history[question_history.length - 1]['question'] = { translations: data[word]['translations'], word: word, should_translate_to: 'ru' }
-			ctx.reply(word)
+			await ctx.reply("Перевод слова отсутствует")
+			user.spelling.i += 1
+			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+			spelling(ctx)
 		}
+
+
 	} else {
 		spelling_result(ctx)
 	}
