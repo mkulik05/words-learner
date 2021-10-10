@@ -91,12 +91,8 @@ let check = async (ctx) => {
 			if (question_history[question_history.length - 1]['question']['should_translate_to'] === 'ru') {
 				for (let i = 0; i < translations.length; i++) {
 					let translation = translations[i]
-					while (answ.includes("ё")) {
-						answ[answ.indexOf("ё")] = "е"
-					}
-					while (translation.includes("ё")) {
-						translation[translation.indexOf("ё")] = "е"
-					}
+					answ.replace(/ё/g, 'e')
+					translation.replace(/ё/g, 'e')
 					console.log(answ, translation,)
 					if (answ === translation || translation.split(" ").includes(answ) || translation.split(", ").includes(answ)) {
 						correct = 1
