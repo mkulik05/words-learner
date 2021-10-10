@@ -57,17 +57,19 @@ const keyboard_statistics = Markup.inlineKeyboard([[
 ]
 ])
 
-let question_history = [{ question: {} }]
-let mode = ""
+// let question_history = [{ question: {} }]
+// let mode = ""
+
 let sort_words = (ctx) => {
-	mode = 'new'
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "spelling": {}, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "params": {"mode": "", "question_history": [{"question": {}}]}, "learned": [], "spelling": {}, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
 		user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	}
+	user.params.mode = "new"
+	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	if (user.new.length > 0) {
 		let word = user.new.pop()
 		ctx.reply(word, keyboard_discovering)
@@ -78,7 +80,10 @@ let sort_words = (ctx) => {
 }
 
 let check = async (ctx) => {
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	let mode = user?.params?.mode
 	console.log("\n\n", mode)
+	let question_history = user.params.question_history
 	if (question_history[question_history.length - 1] !== { question: {} }) {
 		let answ = ctx.message.text.toLocaleLowerCase()
 		let correct = 0
@@ -156,7 +161,7 @@ let check = async (ctx) => {
 let learn_words = (ctx) => {
 	console.log("learn_words")
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "learned": [], "spelling": {}, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
+	let user = { "params": {"mode": "", "question_history": [{"question": {}}]}, "learned": [], "spelling": {}, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
 	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	} else {
@@ -164,8 +169,8 @@ let learn_words = (ctx) => {
 	}
 	let need_to_learn = user['need_to_learn']
 	let current_group = need_to_learn['current_group']
-	question_history.push({})
-	mode = 'learning'
+	user.params.question_history.push({})
+	user.params.mode = 'learning'
 	if (need_to_learn.words.length > 0) {
 		let portion = need_to_learn.words.slice(current_group * 10 - 10, current_group * 10)
 		if (!Object.keys(user['need_to_learn']).includes('k')) {
@@ -202,7 +207,8 @@ let learn_words = (ctx) => {
 			if (Math.random() > 0.5) {
 				word = en_word
 				console.log('en to ru')
-				question_history[question_history.length - 1]['question'] = { translations: data[en_word]['translations'], word: en_word, should_translate_to: 'ru' }
+				user.params.question_history[user.params.question_history.length - 1]['question'] = { translations: data[en_word]['translations'], word: en_word, should_translate_to: 'ru' }
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				ctx.reply(word, keyboard_learning_en_ru)
 			} else {
 				let question = data[en_word]['translations'][0]
@@ -210,7 +216,8 @@ let learn_words = (ctx) => {
 				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				word = question
 				console.log('ru to en')
-				question_history[question_history.length - 1]['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+				user.params.question_history[user.params.question_history.length - 1]['question'] = { translations: [[en_word]], word: question, should_translate_to: 'en' }
 				ctx.reply(word, keyboard_learning_ru_en)
 			}
 		} else {
@@ -260,6 +267,9 @@ for (let i of [0, 1]) {
 }
 
 bot.action(`get_translation`, async (ctx) => {
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	let question_history = user.params.question_history
+	console.log(question_history, user.params)
 	let current_word = question_history[question_history.length - 1]['question']['translations']
 	let answ = question_history[question_history.length - 1].question.word + " - " + current_word.join('; ')
 	await ctx.reply(answ)
@@ -332,6 +342,7 @@ let init_spelling = async (ctx, borders, from) => {
 
 let spelling_result = (ctx) => {
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	let question_history = user.params.question_history
 	let errors = user.spelling.errors
 	if (errors.length !== 0) {
 		let res = "Повторите эти слова:\n\n"
@@ -348,7 +359,8 @@ let spelling_result = (ctx) => {
 			res += translations.join('; ')
 			res += ` (ваш ответ - ${error.your_answ})\n`
 		}
-		mode = "learning"
+		user.params.mode = "learning"
+		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		ctx.reply(res, Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
 	} else {
 		ctx.reply("Вы ответили правильно на все вопросы", Keyboard.make([['←', '|Перейти к группе|', '→'], ['|Диктант|', '|Повторение|'], ['|Главная|', '|Перемешать слова|']]).reply())
@@ -365,13 +377,15 @@ let spelling = async (ctx) => {
 		let word = words[user.spelling.i]
 		console.log(user.spelling)
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-		question_history.push({})
+		user.params.question_history.push({})
 		if (data[word] !== undefined && (typeof data[word] === 'object' && data[word]['translations'].length > 0 && data[word]['translations'][0].length)) {
 			if (user.spelling.from === 'ru') {
-				question_history[question_history.length - 1]['question'] = { translations: [[word]], word: data[word]['translations'][0], should_translate_to: 'en' }
+				user.params.question_history[user.params.question_history.length - 1]['question'] = { translations: [[word]], word: data[word]['translations'][0], should_translate_to: 'en' }
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				ctx.reply(data[word]['translations'][0])
 			} else {
-				question_history[question_history.length - 1]['question'] = { translations: data[word]['translations'], word: word, should_translate_to: 'ru' }
+				user.params.question_history[user.params.question_history.length - 1]['question'] = { translations: data[word]['translations'], word: word, should_translate_to: 'ru' }
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				ctx.reply(word)
 			}
 		} else {
@@ -505,18 +519,21 @@ bot.on('text', async (ctx) => {
 			break;
 		case '|Английский|':
 			if (user.need_to_learn.words.length > 0) {
-				mode = "select_groups_for_spelling_en"
+				user.params.mode = "select_groups_for_spelling_en"
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				ctx.reply("Выберите группы в формате '1-5'")
 			}
 			break;
 		case '|Русский|':
 			if (user.need_to_learn.words.length > 0) {
-				mode = "select_groups_for_spelling_ru"
+				user.params.mode = "select_groups_for_spelling_ru"
+				fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 				ctx.reply("Выберите группы в формате '1-5'")
 			}
 			break;
 		case '|Перейти к группе|':
-			mode = "to_n_group"
+			user.params.mode = "to_n_group"
+			fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 			ctx.reply('Введите номер группы')
 			break
 		case '|Перемешать слова|':
@@ -557,16 +574,17 @@ bot.on('text', async (ctx) => {
 			ctx.reply("Главная", Keyboard.make([['|Сортировать слова|', '|Учить слова|'], ['|Статистика|']]).reply())
 			break
 		default:
-			console.log("text", mode)
-			if (mode === 'learning' || mode === "spelling") {
+			console.log("text", user.params.mode)
+			if (user.params.mode === 'learning' || user.params.mode === "spelling") {
 				check(ctx);
 				break;
 			}
-			if (mode === "to_n_group") {
+			if (user.params.mode === "to_n_group") {
 				let text = ctx.message.text.toLowerCase()
 				if (!isNaN(parseInt(text))) {
 					let group = parseInt(text)
-					mode = "learning"
+					user.params.mode = "learning"
+					fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 					if (group < 1) group = 1
 					if (group > Math.floor(user.need_to_learn.words.length / 10)) group = Math.floor(user.need_to_learn.words.length / 10)
 					select_group(ctx, group)
@@ -574,9 +592,9 @@ bot.on('text', async (ctx) => {
 					ctx.reply("Введите корректный ответ")
 				}
 			}
-			if (mode.includes("select_groups_for_spelling")) {
+			if (user.params.mode.includes("select_groups_for_spelling")) {
 				let lang = ""
-				if (mode.includes("_ru")) {
+				if (user.params.mode.includes("_ru")) {
 					lang = "ru"
 				} else {
 					lang = "en"
@@ -593,7 +611,8 @@ bot.on('text', async (ctx) => {
 				}
 				if (res.length === 2 || res[0] > res[1]) {
 					if (res[0] < 1) res[0] = 1
-					mode = "spelling"
+					user.params.mode = "spelling"
+					fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 					init_spelling(ctx, res, lang)
 				} else {
 					ctx.reply("Укажите корректный промежуток")
