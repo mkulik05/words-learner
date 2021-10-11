@@ -355,6 +355,14 @@ bot.action(`get_translation`, async (ctx) => {
 	let question_history = user.params.question_history
 	let current_word = question_history[question_history.length - 1]['question']['translations']
 	let answ = question_history[question_history.length - 1].question.word + " - " + current_word.join('; ')
+	if (user.params.mode === "learning") {
+		user['need_to_learn']['k'][question] += rating
+	} 
+	if (user.params.mode === "repeat_spelling") { 
+		let n = user.ctx.spelling.repeat_spelling.spelling_n
+		user.spelling.repeat_spelling.groups[n].words.k[question] += rating
+	}
+	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	await ctx.reply(answ)
 	learn_words(ctx)
 })
@@ -391,9 +399,21 @@ for (let rating of rating_changes) {
 		}
 		if (translate_to === 'en') {
 			let word = user.need_to_learn.ru_to_en[question]
-			user['need_to_learn']['k'][word] += rating
+			if (user.params.mode === "learning") {
+				user['need_to_learn']['k'][word] += rating
+			} 
+			if (user.params.mode === "repeat_spelling") { 
+				let n = user.ctx.spelling.repeat_spelling.spelling_n
+				user.spelling.repeat_spelling.groups[n].words.k[word] += rating
+			}
 		} else {
-			user['need_to_learn']['k'][question] += rating
+			if (user.params.mode === "learning") {
+				user['need_to_learn']['k'][question] += rating
+			} 
+			if (user.params.mode === "repeat_spelling") { 
+				let n = user.ctx.spelling.repeat_spelling.spelling_n
+				user.spelling.repeat_spelling.groups[n].words.k[question] += rating
+			}
 		}
 		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 		ctx.reply('Рейтинг изменён, но бот всё ещё ждёт Вашего ответа')
