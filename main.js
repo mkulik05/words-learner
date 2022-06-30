@@ -385,9 +385,14 @@ bot.action(`get_example`, async (ctx) => {
 	if (Object.keys(data).includes(word) && Object.keys(data[word]).includes('examples')) {
 		let examples = data[word]['examples']
 		let answ = ""
+		let max_len = 4096
 		for (let example of examples) {
-			answ += example
-			answ += '\n\n'
+			if ((answ+ example).length + 5 < max_len){
+				answ += example
+				answ += '\n\n'
+			} else {
+				break
+			}
 		}
 		await ctx.reply(answ)
 	} else {
