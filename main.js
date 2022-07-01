@@ -55,13 +55,7 @@ const keyboard_statistics = Markup.inlineKeyboard([[
 ])
 
 let sort_words = (ctx) => {
-	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "params": { "mode": "", "question_history": [{ "question": {} }] }, "learned": [], "spelling": { "repeat_spelling": { "id": 0 } }, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
-	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
-		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-	} else {
-		user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	}
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
 	user.params.mode = "new"
 	fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
 	if (user.new.length > 0) {
@@ -176,14 +170,12 @@ let check = async (ctx) => {
 }
 
 let learn_words = (ctx) => {
+
 	console.log("learn_words")
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	let user = { "params": { "mode": "", "question_history": [{ "question": {} }] }, "learned": [], "spelling": { "repeat_spelling": { "id": 0 } }, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": data.all.sort(() => Math.random() - 0.5) }
-	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
-		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
-	} else {
-		user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	}
+	
+	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	
 	let need_to_learn = user['need_to_learn']
 	let current_group = need_to_learn['current_group']
 	user.params.question_history.push({ question: {} })
@@ -521,9 +513,9 @@ let spelling = async (ctx) => {
 
 bot.action(`hear_word`, async (ctx) => {
 	let word = ctx.update.callback_query.message.text
-	if (fs.existsSync(`tts/speech/${word}.mp3`)) {
+	if (fs.existsSync(`audios/${word}.mp3`)) {
 		await ctx.replyWithVoice({
-			source: fs.createReadStream(`tts/speech/${word}.mp3`)
+			source: fs.createReadStream(`audios/${word}.mp3`)
 		})
 	} else {
 		await ctx.reply("Запись отсутствует")
@@ -613,7 +605,14 @@ bot.start((ctx) => {
 })
 
 bot.on('text', async (ctx) => {
-	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	let data = JSON.parse(fs.readFileSync("data/data.json"))
+	let user = { "params": { "mode": "", "question_history": [{ "question": {} }] }, "learned": [], "spelling": { "repeat_spelling": { "id": 0 } }, "need_to_learn": { "words": [], "k": {}, "current_group": 1, 'ru_to_en': {} }, "new": Object.keys(data).sort(() => Math.random() - 0.5) }
+	if (!fs.existsSync(`user_configs/${ctx.chat.id}.json`)) {
+		fs.writeFileSync(`user_configs/${ctx.chat.id}.json`, JSON.stringify(user))
+	} else {
+		user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
+	}
+
 	switch (ctx.message.text) {
 		case '|Главная|':
 			ctx.reply("Главная", Keyboard.make([['|Сортировать слова|', '|Учить слова|'], ['|Статистика|']]).reply())

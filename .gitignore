@@ -2,3 +2,5 @@ audios
 node_modules
 package-lock.json
 data/data.json
+configs/bot_token.json
+user_configs/*
