@@ -4,6 +4,9 @@ const token = JSON.parse(fs.readFileSync("configs/bot_token.json")).token
 const bot = new Telegraf(token);
 import { Keyboard } from 'telegram-keyboard';
 
+
+
+
 const keyboard_discovering = Markup.inlineKeyboard([[
 	Markup.button.callback('Знаю', 'add_to_learned0'),
 	Markup.button.callback('Не знаю', 'add_to_need_to_learn'),
@@ -15,7 +18,7 @@ const keyboard_discovering = Markup.inlineKeyboard([[
 
 
 ])
-const keyboard_learning_en_ru = Markup.inlineKeyboard([
+const keyboard_learning = [
 	[
 
 		Markup.button.callback('-3', 'change_rating-3'),
@@ -23,27 +26,22 @@ const keyboard_learning_en_ru = Markup.inlineKeyboard([
 		Markup.button.callback('+2', 'change_rating2'),
 		Markup.button.callback('+3', 'change_rating3'),
 
-	],
-	[
-		Markup.button.callback('Примеры', 'get_example'),
-		Markup.button.callback('Не знаю', 'get_translation'),
-	],
-	[
-		Markup.button.callback('Озвучить', 'hear_word')
-	]
-])
-const keyboard_learning_ru_en = Markup.inlineKeyboard([
-	[
-		Markup.button.callback('-3', 'change_rating-3'),
-		Markup.button.callback('-2', 'change_rating-2'),
-		Markup.button.callback('+2', 'change_rating2'),
-		Markup.button.callback('+3', 'change_rating3'),
 	],
 	[
 		Markup.button.callback('Примеры', 'get_example'),
 		Markup.button.callback('Не знаю', 'get_translation')
-	],
+	]
+]
 
+const keyboard_learning_en_ru = Markup.inlineKeyboard([
+	...keyboard_learning,
+	[
+		Markup.button.callback('Озвучить', 'hear_word')
+	]
+])
+
+const keyboard_learning_ru_en = Markup.inlineKeyboard([
+	...keyboard_learning
 ])
 
 const keyboard_statistics = Markup.inlineKeyboard([[
@@ -173,9 +171,9 @@ let learn_words = (ctx) => {
 
 	console.log("learn_words")
 	let data = JSON.parse(fs.readFileSync("data/data.json"))
-	
+
 	let user = JSON.parse(fs.readFileSync(`user_configs/${ctx.chat.id}.json`))
-	
+
 	let need_to_learn = user['need_to_learn']
 	let current_group = need_to_learn['current_group']
 	user.params.question_history.push({ question: {} })
@@ -379,7 +377,7 @@ bot.action(`get_example`, async (ctx) => {
 		let answ = ""
 		let max_len = 4096
 		for (let example of examples) {
-			if ((answ+ example).length + 5 < max_len){
+			if ((answ + example).length + 5 < max_len) {
 				answ += example
 				answ += '\n\n'
 			} else {
@@ -601,7 +599,7 @@ let repeat = (ctx) => {
 }
 
 bot.start((ctx) => {
-	ctx.reply("Воспульзуйтесь клавиатурой чтобы начать учить слова", Keyboard.make([['|Сортировать слова|', '|Учить слова|'], ['|Статистика|']]).reply())
+	ctx.reply("Чтобы приступить начните сортировать слова", Keyboard.make([['|Сортировать слова|', '|Учить слова|'], ['|Статистика|']]).reply())
 })
 
 bot.on('text', async (ctx) => {
@@ -645,7 +643,7 @@ bot.on('text', async (ctx) => {
 			}
 			break;
 		case '|Диктант|':
-			ctx.reply("Выберите с какого языка переводить", Keyboard.make([["|Английский|", "|Русский|"], ['|Главная|']]).reply())
+			ctx.reply("Выберите с какого языка вы хотите переводить словва", Keyboard.make([["|Английский|", "|Русский|"], ['|Главная|']]).reply())
 			break;
 		case '|Английский|':
 			if (user.need_to_learn.words.length > 0) {
