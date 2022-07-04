@@ -27,7 +27,7 @@
 
 - Клонируем репозиторий
 ```
-git clone
+git clone https://github.com/mkulik05/words-learner
 ```
 
  - Генерируем перевод и озвучку для слов из "data/words.txt"
