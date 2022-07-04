@@ -30,6 +30,16 @@
 git clone https://github.com/mkulik05/words-learner
 ```
 
+ - Создаём необходимые папки
+```
+mkdir user_configs audios configs
+```
+
+ - Устанавливаем зависимости
+```
+npm i
+```
+
  - Генерируем перевод и озвучку для слов из "data/words.txt"
 ``` 
 node generate_data.js
